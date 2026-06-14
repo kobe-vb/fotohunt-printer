@@ -1,0 +1,112 @@
+Foto Hunt – basisidee
+
+Foto Hunt is een real-time teamspel waarbij teams foto-opdrachten uitvoeren en die uploaden via een website op een lokaal netwerk (Raspberry Pi). Alles wordt centraal gestuurd via een thermische printer.
+
+Start
+Elk team vult zijn teamnaam in op de website.
+De printer geeft meteen de eerste opdracht:
+→ een groepsfoto
+
+Vanaf dat moment start het spel.
+
+Game loop (kernmechaniek)
+Team krijgt een opdracht (via printer)
+Team voert opdracht uit en maakt een foto
+Foto wordt geüpload via gsm op lokale website
+Systeem verwerkt de upload
+Printer print:
+de foto + basisinfo
+een nieuwe opdracht voor dat team
+eventueel een coin
+
+Daarna herhaalt dit zich continu.
+
+Opdrachten
+
+Een opdracht bestaat altijd uit vaste elementen:
+
+locatie
+pose
+object
+optionele extra regels
+
+De combinatie bepaalt de moeilijkheid en dus de punten.
+
+Opdrachten worden direct na elkaar gespeeld (geen stockpiling, geen keuzevrijheid).
+
+Punten
+elke opdracht heeft een vaste puntenwaarde
+die waarde is gebaseerd op moeilijkheid van de onderdelen
+eindscore wordt pas op het einde door de jury berekend
+jury keurt enkel foto’s goed of af
+Coins
+
+Elke succesvolle upload geeft een willekeurige coin:
+
+sabotage coin
+shop coin
+steal coin
+
+Coins worden:
+
+geprint (zichtbaar)
+opgeslagen in account (gsm interface)
+Shop (chop)
+
+Met shop coins kunnen teams:
+
+sabotage uitvoeren
+info over andere teams kopen
+tijdelijke voordelen kopen
+combo’s vrijspelen
+extra modifiers activeren
+Sabotage coin
+
+Direct effect op een ander team, bv:
+
+tijdelijke penalty
+volgende opdracht minder punten
+beperking op uitvoering
+visuele handicap (bv. blinddoekregel)
+Steal coin
+je kiest een ander team
+hun huidige opdracht wordt “gestolen”
+beide teams krijgen dezelfde opdracht race
+eerste team dat correct uploadt krijgt punten
+verliezend team krijgt niets voor die opdracht
+
+Belangrijk:
+
+het is altijd per opdracht
+het breekt geen vorige progressie
+het beïnvloedt alleen die ene actieve opdracht
+Shop coin (utility)
+koopt voordelen
+informatie over andere teams
+combo unlocks
+strategische tools
+Combos / bonussen
+verborgen of koopbaar
+worden als ticket geprint
+tellen enkel op het einde mee bij jury
+bestaan uit patronen over meerdere opdrachten
+Special events
+komen willekeurig tijdens het spel
+printer geeft tijdelijke mega-opdracht
+hoge punten
+snelle race tussen teams
+optioneel deelname via gsm
+End phase
+meer bonusopdrachten
+hogere multipliers
+meer chaos events
+sneller tempo
+meer risico = meer punten
+Einde spel
+alle foto’s worden door jury bekeken
+alleen goedgekeurde foto’s tellen
+combo tickets worden ingediend
+totale score bepaalt winnaar
+
+Dat is je systeem in zijn pure vorm:
+een loop van opdracht → foto → upload → print → nieuwe opdracht, met coins als strategielaag en sabotage/steal als interactielaag.
