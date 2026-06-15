@@ -1,6 +1,6 @@
 from escpos.printer import Network
 from PIL import Image
-from task import Task, Element
+from todo.task import Task, Element
 
 
 class PrinterService:

@@ -1,17 +1,20 @@
 const API_BASE = import.meta.env.VITE_API_URL;
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${API_BASE}/${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-    credentials: 'include',
-  });
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let res: Response;
+
+  try {
+    res = await fetch(`${API_BASE}/api/${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+      credentials: 'include',
+    });
+  } catch {
+    throw new Error('Server niet bereikbaar');
+  }
 
   const data = await res.json().catch(() => ({}));
 
