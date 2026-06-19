@@ -19,16 +19,15 @@ export default function JoinPage() {
 
   async function createTeam() {
     if (!name.trim()) return;
-    const team = await api.post<Team>(`games/${gameId}/teams`, { name });
-    localStorage.setItem('team_name', team.name);
+    await api.post<Team>(`games/${gameId}/teams`, { name });
+    localStorage.setItem('team_name', name);
     navigate('/game');
   }
 
-  function selectTeam(team: Team) {
-    // team selecten zonder cookie werkt niet want cookie zet de server
-    // dus gewoon een POST doen met de bestaande naam
-    // of: aparte join endpoint maken  TODO:
-    localStorage.setItem('team_name', team.name);
+  async function selectTeam(team: Team) {
+    
+    await api.get(`games/${gameId}/teams/assign/${team.name}`);
+    localStorage.setItem('team_name', name);
     navigate('/game');
   }
 
