@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from routers import api_router
 from contextlib import asynccontextmanager
+from fastapi.staticfiles import StaticFiles
 
 from services.PrinterQueue import PrinterQueue
 
@@ -30,3 +31,5 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")

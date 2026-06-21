@@ -2,7 +2,7 @@ import random
 
 from sqlmodel import Session, func, select
 
-from models import TaskRecord
+from models.models import TaskRecord
 
 # --- Woordenlijsten (uitbreiden naar smaak) ---
 

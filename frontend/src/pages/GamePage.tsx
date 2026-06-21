@@ -5,7 +5,6 @@ import {
 } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../apiClient';
-import { resume } from 'react-dom/server';
 
 type Extra = { text: string; likes: number };
 

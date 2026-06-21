@@ -1,10 +1,12 @@
 import asyncio
 from dataclasses import dataclass
+import traceback
 from typing import Any
 
 from fastapi import Request
-from models import TaskRecord
-from services.printer import PrinterService
+from models.models import TaskRecord
+from models.task import TaskResponse
+from services.printerService import PrinterService
 
 
 @dataclass
@@ -18,10 +20,10 @@ class PrinterQueue:
         self.queue = asyncio.Queue()
         self.printer: PrinterService = PrinterService("192.168.1.99")
 
-    async def print_task(self, team_name: str, task: TaskRecord):
+    async def print_task(self, team_name: str, task: TaskResponse):
         await self.queue.put(PrintJob(type="new_task", team_name=team_name, data=task))
     
-    async def print_submission(self, team_name: str, task: TaskRecord):
+    async def print_submission(self, team_name: str, task: TaskResponse):
         await self.queue.put(PrintJob(type="submission", team_name=team_name, data=task))
         
     async def print_coins(self, team_name: str, coin_name: str):
@@ -38,17 +40,17 @@ class PrinterQueue:
             print(f"Unknown print job type: {job.type}")
             
     async def worker(self):
-        """TODO: Start deze als asyncio background task bij app startup."""
+        loop = asyncio.get_event_loop()
         while True:
             job = await self.queue.get()
             try:
-                self._do_print(job)
-            except Exception as e:
-                print(f"Error processing print job: {e}")
+                await loop.run_in_executor(None, self._do_print, job)
+            except Exception:
+                traceback.print_exc()
             finally:
                 self.queue.task_done()
 
-
+    
 def get_printer_Queue(request: Request) -> PrinterQueue:
     return request.app.state.printerQueue
    

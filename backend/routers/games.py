@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models import Game
+from models.models import Game
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/games", tags=["games"])

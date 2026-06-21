@@ -27,7 +27,7 @@ export default function JoinPage() {
   async function selectTeam(team: Team) {
     
     await api.get(`games/${gameId}/teams/assign/${team.name}`);
-    localStorage.setItem('team_name', name);
+    localStorage.setItem('team_name', team.name);
     navigate('/game');
   }
 

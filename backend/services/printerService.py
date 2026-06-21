@@ -1,22 +1,19 @@
+import os
+
 from escpos.printer import Network
 from PIL import Image
-from models import TaskRecord
+from models.models import TaskRecord
+from models.task import TaskResponse
+from services.DummyPrinter import DummyPrinter
+from services.img import prepare_image
 
-class DummyPrinter:
-    def text(self, text):
-        print(text, end="")
-
-    def cut(self):
-        print("--- CUT ---")
-
-    def set(self, **kwargs):
-        pass
 
 class PrinterService:
     def __init__(self, ip, port=9100):
         
-        real_printer = False
-        if real_printer:
+        USE_REAL_PRINTER = os.getenv("USE_PRINTER", "false") == "true"
+
+        if USE_REAL_PRINTER:
             self.p = Network(ip, port=port)
         else:
             self.p = DummyPrinter()
@@ -25,7 +22,7 @@ class PrinterService:
         self.p.text("\x1b@")
         
 
-    def print_task(self, team_name: str, task: TaskRecord, self_cutting: bool = True):
+    def print_task(self, team_name: str, task: TaskResponse, self_cutting: bool = True):
 
         # --- HEADER (team name groot) ---
         self.p.set(align="center", bold=True, double_height=True, double_width=True, underline=1)
@@ -50,14 +47,15 @@ class PrinterService:
         
         self.p.text(f"\nextra's({task.bonus_likes}):\n")
         for extra in task.extras:
-            self.p.text(f"  •({extra['likes']}) {extra['text']}\n")
+            self.p.text(f"  •({extra.likes}) {extra.text}\n")
 
         if self_cutting:
             self.p.cut()
     
-    def print_submission(self, team_name: str, task: TaskRecord):
+    def print_submission(self, team_name: str, task: TaskResponse):
         self.print_task(team_name, task, self_cutting=False)
         self.p.text(f"foto: {task.photo_url}")
+        self.p.image(prepare_image(task.photo_url))
         self.p.cut()
     
     def print_coins(self, team_name: str, coin_name: str):

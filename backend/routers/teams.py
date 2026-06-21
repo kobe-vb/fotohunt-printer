@@ -3,12 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Cookie
 from sqlmodel import Session, select
 from database import get_session
 from services.PrinterQueue import get_printer_Queue
-from models import TaskRecord, Team, Game
+from models.models import TaskRecord, Team, Game
 from pydantic import BaseModel
 
 from services.PrinterQueue import PrinterQueue
-from task import assign_new_task
-from task_generator import generate_task
+from services.submission import assign_new_task
+from services.task_generator import generate_task
 
 router = APIRouter(prefix="/games/{game_id}/teams", tags=["teams"])
 
