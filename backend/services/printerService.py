@@ -12,6 +12,7 @@ class PrinterService:
     def __init__(self, ip, port=9100):
         
         USE_REAL_PRINTER = os.getenv("USE_PRINTER", "false") == "true"
+        print(f"Using real printer: {USE_REAL_PRINTER}")
 
         if USE_REAL_PRINTER:
             self.p = Network(ip, port=port)
