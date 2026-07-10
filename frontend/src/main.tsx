@@ -8,7 +8,7 @@ import App from './App';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <MantineProvider defaultColorScheme="dark">
-      <BrowserRouter>
+      <BrowserRouter basename="/printer">
         <App />
       </BrowserRouter>
     </MantineProvider>
