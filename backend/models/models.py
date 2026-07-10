@@ -17,11 +17,19 @@ class Team(SQLModel, table=True):
     name: str
     game_id: str = Field(foreign_key="game.id")
 
-    sabotage_coins: int = Field(default=0)
-    shop_coins: int = Field(default=0)
-    steal_coins: int = Field(default=0)
+    sabotage_coins: int = Field(default=10)
+    shop_coins: int = Field(default=10)
+    steal_coins: int = Field(default=10)
+    
+    number_of_extras: int = Field(default=0)
+    block_steal: bool = Field(default=False)
+    multiplier: float = Field(default=1.0)
+    
+    blindfold: int = Field(default=0)
+    backwards: int = Field(default=0)
 
     active_task_id: Optional[str] = Field(default=None)
+    steal_task_id: Optional[str] = Field(default=None)
 
 
 class TaskRecord(SQLModel, table=True):
@@ -41,6 +49,7 @@ class TaskRecord(SQLModel, table=True):
 
     photo_url: Optional[str] = Field(default=None)
     submitted_at: Optional[datetime] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     @property
     def likes(self) -> int:
@@ -56,3 +65,4 @@ class TaskRecord(SQLModel, table=True):
 
     def set_extras(self, extras: list[dict]):
         self.extras_json = json.dumps(extras)
+        

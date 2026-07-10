@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Container, Group, Text, Button, Stack, Card, Badge,
-  FileInput, Slider, Title, Box, SimpleGrid, Paper
+  FileInput, Slider, Title, Box, SimpleGrid, Paper, SegmentedControl
 } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../apiClient';
@@ -26,16 +26,22 @@ type Team = {
   sabotage_coins: number;
   shop_coins: number;
   steal_coins: number;
+  number_of_extras: number;
+  block_steal: boolean;
+  multiplier: number;
+  blindfold: number;
+  backwards: number;
   active_task_id: string | null;
+  steal_task_id: string | null;
 };
 
-type Modifier = { label: string; type: 'loc' | 'pose' | 'obj' | 'extra' };
+type Modifier = { label: string; type: 'block' | 'multiplier' | 'blindfold' | 'backwards' };
 
 const MODIFIER_COLORS: Record<string, string> = {
-  loc: 'blue',
-  pose: 'orange',
-  obj: 'green',
-  extra: 'violet',
+  block: 'red',
+  multiplier: 'teal',
+  blindfold: 'gray',
+  backwards: 'grape',
 };
 
 export default function GamePage() {
@@ -45,7 +51,8 @@ export default function GamePage() {
 
   const [team, setTeam] = useState<Team | null>(null);
   const [task, setTask] = useState<TaskRecord | null>(null);
-  const [modifiers] = useState<Modifier[]>([]); // vul dit later met echte modifier API
+  const [stealTask, setStealTask] = useState<TaskRecord | null>(null);
+  const [submitTarget, setSubmitTarget] = useState<'own' | 'steal'>('own');
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [brightness, setBrightness] = useState(0);
@@ -56,31 +63,47 @@ export default function GamePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const t = await api.get<Team>('teams/me');
-        setTeam(t);
+  const modifiers: Modifier[] = useMemo(() => {
+    if (!team) return [];
+    const mods: Modifier[] = [];
+    if (team.block_steal) mods.push({ label: 'Steal geblokkeerd', type: 'block' });
+    if (team.multiplier !== 1) mods.push({ label: `Multiplier x${team.multiplier}`, type: 'multiplier' });
+    if (team.blindfold > 0) mods.push({ label: `Blinddoek (${team.blindfold})`, type: 'blindfold' });
+    if (team.backwards > 0) mods.push({ label: `Achterstevoren (${team.backwards})`, type: 'backwards' });
+    return mods;
+  }, [team]);
 
-        if (!t.active_task_id) {
-          setError('Je hebt momenteel geen actieve taak.');
-          return;
-        }
+  async function loadData() {
+    try {
+      const t = await api.get<Team>('teams/me');
+      setTeam(t);
 
-        const task = await api.get<TaskRecord>(`task/${t.active_task_id}`);
-        setTask(task);
-      } catch (err: any) {
-        setError(
-          err?.message ||
-          'Kan teamgegevens niet laden. Controleer je verbinding.'
-        );
-      } finally {
-        setLoading(false);
+      if (!t.active_task_id) {
+        setError('Je hebt momenteel geen actieve taak.');
+        return;
       }
-    }
 
-    loadData();
-  }, []);
+      const activeTask = await api.get<TaskRecord>(`task/${t.active_task_id}`);
+      setTask(activeTask);
+
+      if (t.steal_task_id) {
+        const stolen = await api.get<TaskRecord>(`task/${t.steal_task_id}`);
+        setStealTask(stolen);
+        setSubmitTarget('steal'); // race, dus dit heeft voorrang
+      } else {
+        setStealTask(null);
+        setSubmitTarget('own');
+      }
+    } catch (err: any) {
+      setError(
+        err?.message ||
+        'Kan teamgegevens niet laden. Controleer je verbinding.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {loadData()}, []);
 
   // Laad foto in canvas
   useEffect(() => {
@@ -131,7 +154,8 @@ export default function GamePage() {
   }, [applyFilters]);
 
   async function submitPhoto() {
-    if (!canvasRef.current || !task) return;
+    const targetTask = submitTarget === 'steal' && stealTask ? stealTask : task;
+    if (!canvasRef.current || !targetTask) return;
     setSubmitting(true);
     canvasRef.current.toBlob(async (blob) => {
       if (!blob) { setSubmitting(false); return; }
@@ -139,16 +163,12 @@ export default function GamePage() {
       formData.append('photo', blob, 'foto.jpg');
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/task/${task.id}/submit`,
+          `${import.meta.env.VITE_API_URL}/api/task/${targetTask.id}/submit`,
           { method: 'POST', body: formData, credentials: 'include' }
         );
-        if (!res.ok) 
-
-          {
-            throw new Error(await res.text());
-          }
-          const newTask: TaskRecord = await res.json();
-        setTask(newTask);
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
         setPhotoFile(null);
         srcImageRef.current = null;
         setBrightness(0);
@@ -160,6 +180,10 @@ export default function GamePage() {
         setSubmitting(false);
       }
     }, 'image/jpeg', 0.85);
+
+    setTimeout(() => {
+      loadData();
+    }, 3000);
   }
 
 
@@ -255,6 +279,44 @@ export default function GamePage() {
             </Card>
           )}
 
+          {/* Gestolen taak - race! */}
+          {stealTask && (
+            <Card withBorder style={{ borderColor: 'var(--mantine-color-red-6)', borderWidth: 2 }}>
+              <Group justify="space-between" mb="xs">
+                <Text size="xs" c="red" tt="uppercase" fw={700}>Gestolen taak · #{stealTask.sequence_number}</Text>
+                <Badge color="red">Race!</Badge>
+              </Group>
+              <Text size="sm" c="dimmed" mb="sm">
+                Deze taak is van een ander team gestolen. Wie 'm het eerst indient, krijgt de punten —
+                het verliezende team krijgt niets voor deze taak. Je eigen taak hieronder blijft gewoon staan.
+              </Text>
+              <SimpleGrid cols={3} spacing="sm" mb="sm">
+                <Paper p="sm" withBorder>
+                  <Text size="xs" c="dimmed">Locatie</Text>
+                  <Text size="sm" fw={500}>{stealTask.location_text}</Text>
+                  <Text size="xs" c="dimmed">+{stealTask.location_likes} likes</Text>
+                </Paper>
+                <Paper p="sm" withBorder>
+                  <Text size="xs" c="dimmed">Pose</Text>
+                  <Text size="sm" fw={500}>{stealTask.pose_text}</Text>
+                  <Text size="xs" c="dimmed">+{stealTask.pose_likes} likes</Text>
+                </Paper>
+                <Paper p="sm" withBorder>
+                  <Text size="xs" c="dimmed">Object</Text>
+                  <Text size="sm" fw={500}>{stealTask.object_text}</Text>
+                  <Text size="xs" c="dimmed">+{stealTask.object_likes} likes</Text>
+                </Paper>
+              </SimpleGrid>
+              {stealTask.extras.map((ex, i) => (
+                <Group key={i} justify="space-between" p="xs"
+                  style={{ background: 'var(--mantine-color-red-0)', borderRadius: 8, marginTop: 4 }}>
+                  <Text size="sm">{ex.text}</Text>
+                  <Text size="xs" c="dimmed">+{ex.likes} likes</Text>
+                </Group>
+              ))}
+            </Card>
+          )}
+
           {/* Taak */}
           <Card withBorder>
             <Text size="xs" c="dimmed" tt="uppercase" mb="sm">Taak #{task.sequence_number}</Text>
@@ -287,6 +349,20 @@ export default function GamePage() {
           {/* Foto upload + preview */}
           <Card withBorder>
             <Text size="xs" c="dimmed" tt="uppercase" mb="sm">Foto uploaden</Text>
+
+            {stealTask && (
+              <SegmentedControl
+                fullWidth
+                mb="sm"
+                value={submitTarget}
+                onChange={(v) => setSubmitTarget(v as 'own' | 'steal')}
+                data={[
+                  { label: `Gestolen taak (#${stealTask.sequence_number})`, value: 'steal' },
+                  { label: `Eigen taak (#${task.sequence_number})`, value: 'own' },
+                ]}
+              />
+            )}
+
             <FileInput
               placeholder="Kies foto of open camera"
               accept="image/*"
@@ -327,7 +403,7 @@ export default function GamePage() {
             loading={submitting}
             onClick={submitPhoto}
           >
-            Indienen
+            Indienen{stealTask ? (submitTarget === 'steal' ? ' (gestolen taak)' : ' (eigen taak)') : ''}
           </Button>
 
         </Stack>

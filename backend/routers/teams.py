@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie
 from sqlmodel import Session, select
 from database import get_session
+from models.task import TaskResponse
 from services.PrinterQueue import get_printer_Queue
 from models.models import TaskRecord, Team, Game
 from pydantic import BaseModel
@@ -39,7 +40,7 @@ async def create_team(game_id: str, body: TeamCreate, response: Response, sessio
     
     task: TaskRecord = generate_task(team.id, 1) # TODO: add simple task type
     assign_new_task(team.id, session, task)
-    await printer.print_task(team.name, task)
+    await printer.print_task(team.name, TaskResponse.from_record(task))
     
 @router.get("/assign/{team_name}")
 def assign_team(team_name: str, response: Response, session: Session = Depends(get_session)):

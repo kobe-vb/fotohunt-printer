@@ -1,5 +1,6 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 from sqlmodel import Session, select, func
 from models.models import TaskRecord, Team
 from models.task import TaskResponse
@@ -22,15 +23,17 @@ async def handle_submission(
         raise ValueError("Task niet gevonden")
     if old_task.photo_url:
         raise ValueError("Task al ingediend")
+    # TODO: Uncomment this check if you want to enforce a minimum time between submissions
+    # if datetime.utcnow() - old_task.created_at < timedelta(minutes=3):
+    #     raise ValueError(f"Task te snel ingediend, wacht {3 - (datetime.utcnow() - old_task.created_at).seconds // 60} minuten")
 
-    team = db.get(Team, old_task.team_id)
+    team = db.get(Team, team_id)
     if not team:
         raise ValueError("Team niet gevonden")
-    
-    if team.id != team_id:
+    if team.active_task_id != task_id and team.steal_task_id != task_id:
         raise ValueError("Dit is niet jouw task")
-
-    submit_task(task_id, photo_bytes, filename, db)
+    
+    submit_task(task_id, team_id, photo_bytes, filename, db)
     db.refresh(old_task)
     old_task_response = TaskResponse.from_record(old_task)
     
@@ -45,14 +48,26 @@ async def handle_submission(
     await printer.print_submission(team.name, old_task_response)
     await printer.print_task(team.name, new_task_response)
 
-    # 5. Coins (later) TODO
-    # coin_type = random.choice(["sabotage", "shop", "steal"])
-    # add_coin(team, coin_type, db)
-    # await printer.print_coins(team.name, coin_type)
+    coin_type = random.choices(["shop", "sabotage", "steal"], weights=[4, 2, 1], k=1)[0]
+    add_coin(team, coin_type, db)
+    await printer.print_coins(team.name, coin_type)
 
     return new_task_response
 
-def submit_task(task_id: str, photo_bytes: bytes, filename: str, db: Session):
+def add_coin(team: Team, coin_type: str, db: Session):
+    if coin_type == "shop":
+        team.shop_coins += 1
+    elif coin_type == "sabotage":
+        team.sabotage_coins += 1
+    elif coin_type == "steal":
+        team.steal_coins += 1
+    else:
+        raise ValueError("Ongeldig type munt")
+    
+    db.add(team)
+    db.commit()
+
+def submit_task(task_id: str, team_id: str, photo_bytes: bytes, filename: str, db: Session):
     
     task = db.get(TaskRecord, task_id)
     if not task:
@@ -61,10 +76,18 @@ def submit_task(task_id: str, photo_bytes: bytes, filename: str, db: Session):
     if task.photo_url:
         raise ValueError("Task al ingediend")
 
-    team = db.get(Team, task.team_id)
+    team = db.get(Team, team_id)
     if not team:
         raise ValueError("Team niet gevonden")
-
+    
+    if team.steal_task_id == task_id:
+        team.steal_task_id = None
+        stolen_team = db.get(Team, task.team_id)
+        if stolen_team:
+            stolen_team.active_task_id = None
+        task.team_id = team_id
+        db.add(stolen_team)
+        
     os.makedirs(PHOTO_DIR, exist_ok=True)
     path = os.path.join(PHOTO_DIR, f"{task_id}_{filename}")
 

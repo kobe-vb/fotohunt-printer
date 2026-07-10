@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .vscode/
 backend/static/photos/*
+node_modules/
+dist/
