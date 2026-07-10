@@ -6,3 +6,7 @@ backend/static/photos/*
 fotohunt.db
 node_modules/
 dist/
+# SQLite database
+*.db
+*.sqlite
+*.sqlite3
