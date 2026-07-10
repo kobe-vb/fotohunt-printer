@@ -9,6 +9,9 @@ from fastapi.staticfiles import StaticFiles
 
 from services.PrinterQueue import PrinterQueue
 
+from dotenv import load_dotenv
+load_dotenv()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     
