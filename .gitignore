@@ -10,3 +10,5 @@ dist/
 *.db
 *.sqlite
 *.sqlite3
+.env
+backend/.env
