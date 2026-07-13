@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Container, Group, Text, Button, Stack, Card, Badge,
-  FileInput, Slider, Title, Box, SimpleGrid, Paper, SegmentedControl
+  FileInput, Title, Box, SimpleGrid, Paper, SegmentedControl
 } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../apiClient';
@@ -46,18 +46,13 @@ const MODIFIER_COLORS: Record<string, string> = {
 
 export default function GamePage() {
   const navigate = useNavigate();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const srcImageRef = useRef<HTMLImageElement | null>(null);
-
   const [team, setTeam] = useState<Team | null>(null);
   const [task, setTask] = useState<TaskRecord | null>(null);
   const [stealTask, setStealTask] = useState<TaskRecord | null>(null);
   const [submitTarget, setSubmitTarget] = useState<'own' | 'steal'>('own');
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [brightness, setBrightness] = useState(0);
-  const [contrast, setContrast] = useState(0);
-  const [threshold, setThreshold] = useState(128);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -105,81 +100,35 @@ export default function GamePage() {
   }
   useEffect(() => {loadData()}, []);
 
-  // Laad foto in canvas
+  // Simpele preview van de gekozen foto, geen verwerking
   useEffect(() => {
-    if (!photoFile) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => {
-        srcImageRef.current = img;
-        applyFilters();
-      };
-      img.src = ev.target?.result as string;
-    };
-    reader.readAsDataURL(photoFile);
+    if (!photoFile) { setPhotoPreviewUrl(null); return; }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
   }, [photoFile]);
-
-  const applyFilters = useCallback(() => {
-    const canvas = canvasRef.current;
-    const src = srcImageRef.current;
-    if (!canvas || !src) return;
-
-    const maxW = 560;
-    let w = src.width, h = src.height;
-    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
-    canvas.width = w;
-    canvas.height = h;
-
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(src, 0, 0, w, h);
-
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const data = imageData.data;
-    const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-
-    for (let i = 0; i < data.length; i += 4) {
-      let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      gray = gray + brightness;
-      gray = contrastFactor * (gray - 128) + 128;
-      gray = Math.max(0, Math.min(255, gray));
-      gray = gray >= threshold ? 255 : 0;
-      data[i] = data[i + 1] = data[i + 2] = gray;
-    }
-    ctx.putImageData(imageData, 0, 0);
-  }, [brightness, contrast, threshold]);
-
-  useEffect(() => {
-    if (srcImageRef.current) applyFilters();
-  }, [applyFilters]);
 
   async function submitPhoto() {
     const targetTask = submitTarget === 'steal' && stealTask ? stealTask : task;
-    if (!canvasRef.current || !targetTask) return;
+    if (!photoFile || !targetTask) return;
     setSubmitting(true);
-    canvasRef.current.toBlob(async (blob) => {
-      if (!blob) { setSubmitting(false); return; }
-      const formData = new FormData();
-      formData.append('photo', blob, 'foto.jpg');
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/task/${targetTask.id}/submit`,
-          { method: 'POST', body: formData, credentials: 'include' }
-        );
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-        setPhotoFile(null);
-        srcImageRef.current = null;
-        setBrightness(0);
-        setContrast(0);
-        setThreshold(128);
-      } catch (e: any) {
-        alert('Indienen mislukt: ' + e.message);
-      } finally {
-        setSubmitting(false);
+
+    const formData = new FormData();
+    formData.append('photo', photoFile, photoFile.name);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/task/${targetTask.id}/submit`,
+        { method: 'POST', body: formData, credentials: 'include' }
+      );
+      if (!res.ok) {
+        throw new Error(await res.text());
       }
-    }, 'image/jpeg', 0.85);
+      setPhotoFile(null);
+    } catch (e: any) {
+      alert('Indienen mislukt: ' + e.message);
+    } finally {
+      setSubmitting(false);
+    }
 
     setTimeout(() => {
       loadData();
@@ -369,30 +318,15 @@ export default function GamePage() {
               value={photoFile}
               onChange={setPhotoFile}
               leftSection={<span>📷</span>}
-              capture="environment"
             />
 
-            {photoFile && (
+            {photoFile && photoPreviewUrl && (
               <Stack gap="sm" mt="md">
-                <canvas
-                  ref={canvasRef}
+                <img
+                  src={photoPreviewUrl}
+                  alt="Preview"
                   style={{ width: '100%', borderRadius: 8, display: 'block' }}
                 />
-                <Box>
-                  <Text size="xs" c="dimmed" mb={4}>Helderheid: {brightness}</Text>
-                  <Slider min={-100} max={100} value={brightness}
-                    onChange={setBrightness} step={1} />
-                </Box>
-                <Box>
-                  <Text size="xs" c="dimmed" mb={4}>Contrast: {contrast}</Text>
-                  <Slider min={-100} max={100} value={contrast}
-                    onChange={setContrast} step={1} />
-                </Box>
-                <Box>
-                  <Text size="xs" c="dimmed" mb={4}>Threshold: {threshold}</Text>
-                  <Slider min={0} max={255} value={threshold}
-                    onChange={setThreshold} step={1} />
-                </Box>
               </Stack>
             )}
           </Card>
