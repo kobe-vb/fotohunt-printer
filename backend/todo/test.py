@@ -4,7 +4,7 @@ from PIL import Image, ImageEnhance
 PRINTER_IP = "192.168.1.99"
 PRINTER_PORT = 9100
 
-IMAGE_PATH = "paard.png"  # zet je foto hier
+IMAGE_PATH = "static/photos/b094cf8f-4e61-4ad3-856d-6e2dc9227dd3_1000001863.jpg"  # zet je foto hier
 
 WIDTH = 384  # safe thermal width for TM-T88IV
 

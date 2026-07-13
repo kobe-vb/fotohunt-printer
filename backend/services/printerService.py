@@ -10,58 +10,74 @@ from services.img import prepare_image
 
 class PrinterService:
     def __init__(self, ip, port=9100):
-        
-        USE_REAL_PRINTER = os.getenv("USE_PRINTER", "false") == "true"
-        print(f"Using real printer: {USE_REAL_PRINTER}")
+        self.ip = ip
+        self.port = port
 
-        if USE_REAL_PRINTER:
-            self.p = Network(ip, port=port)
+        self.use_real_printer = os.getenv("USE_PRINTER", "false") == "true"
+        print(f"Using real printer: {self.use_real_printer}")
+
+    def _connect(self):
+        """Open een verse connectie per print-job (zoals in test.py), i.p.v.
+        1 langlevende socket te hergebruiken voor de hele event-duur."""
+        if self.use_real_printer:
+            p = Network(self.ip, port=self.port)
         else:
-            self.p = DummyPrinter()
+            p = DummyPrinter()
 
         # init printer
-        self.p.text("\x1b@")
-        
+        p.text("\x1b@")
+        return p
 
-    def print_task(self, team_name: str, task: TaskResponse, self_cutting: bool = True):
-
+    def _write_task(self, p, team_name: str, task: TaskResponse):
         # --- HEADER (team name groot) ---
-        self.p.set(align="center", bold=True, double_height=True, double_width=True, underline=1)
-        self.p.text(f"{team_name}\n")
-        self.p.set(underline=0)
-        self.p.text(f"opdracht {task.sequence_number}\n")
-        self.p.set(normal_textsize=True)
-        self.p.text(f"for {task.likes} likes\n")
-        
-        # reset style
-        self.p.set(bold=False, normal_textsize=True, align="left")
-        self.p.text(f"normale opdracht:\n")
+        p.set(align="center", bold=True, double_height=True, double_width=True, underline=1)
+        p.text(f"{team_name}\n")
+        p.set(underline=0)
+        p.text(f"opdracht {task.sequence_number}\n")
+        p.set(normal_textsize=True)
+        p.text(f"for {task.likes} likes\n")
 
-        self.p.text(f"• locatie: {task.location_text} ({task.location_likes})\n")
-        self.p.text(f"• pose: {task.pose_text} ({task.pose_likes})\n")
-        self.p.text(f"• object: {task.object_text} ({task.object_likes})")
+        # reset style
+        p.set(bold=False, normal_textsize=True, align="left")
+        p.text(f"normale opdracht:\n")
+
+        p.text(f"• locatie: {task.location_text} ({task.location_likes})\n")
+        p.text(f"• pose: {task.pose_text} ({task.pose_likes})\n")
+        p.text(f"• object: {task.object_text} ({task.object_likes})")
 
         if len(task.extras) == 0:
-            if self_cutting:
-                self.p.cut()
             return
-        
-        self.p.text(f"\nextra's({task.bonus_likes}):\n")
-        for extra in task.extras:
-            self.p.text(f"  •({extra.likes}) {extra.text}\n")
 
-        if self_cutting:
-            self.p.cut()
-    
+        p.text(f"\nextra's({task.bonus_likes}):\n")
+        for extra in task.extras:
+            p.text(f"  •({extra.likes}) {extra.text}\n")
+
+    def print_task(self, team_name: str, task: TaskResponse):
+        p = self._connect()
+        try:
+            self._write_task(p, team_name, task)
+            p.cut()
+        finally:
+            p.close()
+
     def print_submission(self, team_name: str, task: TaskResponse):
-        self.print_task(team_name, task, self_cutting=False)
-        self.p.text(f"foto: {task.photo_url}")
-        self.p.image(prepare_image(task.photo_url))
-        self.p.cut()
-    
+        p = self._connect()
+        try:
+            self._write_task(p, team_name, task)
+            p.set(align="center")
+            print(task.photo_url)
+            p.image(prepare_image(task.photo_url))
+            p.cut()
+        finally:
+            p.close()
+
     def print_coins(self, team_name: str, coin_name: str):
-        self.p.set(align="center", bold=True, double_height=True, double_width=True, underline=1)
-        self.p.text(f"{team_name}\n")
-        self.p.set(underline=0)
-        self.p.text(f"{coin_name}\n")
-        self.p.cut()
+        p = self._connect()
+        try:
+            p.set(align="center", bold=True, double_height=True, double_width=True, underline=1)
+            p.text(f"{team_name}\n")
+            p.set(underline=0)
+            p.text(f"{coin_name}\n")
+            p.cut()
+        finally:
+            p.close()

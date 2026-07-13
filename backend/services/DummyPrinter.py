@@ -13,5 +13,8 @@ class DummyPrinter:
     def set(self, **kwargs):
         pass
 
+    def close(self):
+        pass
+
     def image(self, image: Image.Image):
         print(f"--- IMAGE {image.size} ---")

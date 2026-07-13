@@ -16,13 +16,13 @@ router = APIRouter(prefix="/games/{game_id}/teams", tags=["teams"])
 class TeamCreate(BaseModel):
     name: str
 
-@router.get("/", response_model=list[Team])
+@router.get("", response_model=list[Team])
 def get_teams(game_id: str, session: Session = Depends(get_session)):
     if not session.get(Game, game_id):
         raise HTTPException(status_code=404, detail="Game niet gevonden")
     return session.exec(select(Team).where(Team.game_id == game_id)).all()
 
-@router.post("/")
+@router.post("")
 async def create_team(game_id: str, body: TeamCreate, response: Response, session: Session = Depends(get_session), printer: PrinterQueue = Depends(get_printer_Queue)):
     
     if not session.get(Game, game_id):

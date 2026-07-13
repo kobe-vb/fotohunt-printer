@@ -9,11 +9,11 @@ router = APIRouter(prefix="/games", tags=["games"])
 class GameCreate(BaseModel):
     name: str
 
-@router.get("/", response_model=list[Game])
+@router.get("", response_model=list[Game])
 def get_games(session: Session = Depends(get_session)):
     return session.exec(select(Game)).all()
 
-@router.post("/", response_model=Game)
+@router.post("", response_model=Game)
 def create_game(body: GameCreate, session: Session = Depends(get_session)):
     game = Game(name=body.name)
     session.add(game)
