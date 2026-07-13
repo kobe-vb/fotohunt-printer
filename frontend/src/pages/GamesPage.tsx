@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Container, Title, Stack, Card, Text, TextInput, Button } from '@mantine/core';
+import { Container, Title, Stack, Card, Text, TextInput, Button, Group } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../apiClient';
 
@@ -39,13 +39,22 @@ export default function GamesPage() {
 
         <Title order={4}>Of kies een bestaande game</Title>
         {games.map((game) => (
-          <Card
-            key={game.id}
-            withBorder
-            style={{ cursor: 'pointer' }}
-            onClick={() => navigate(`/games/${game.id}/join`)}
-          >
-            <Text>{game.name}</Text>
+          <Card key={game.id} withBorder>
+            <Group justify="space-between">
+              <Text
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/games/${game.id}/join`)}
+              >
+                {game.name}
+              </Text>
+              <Button
+                size="compact-sm"
+                variant="default"
+                onClick={() => navigate(`/games/${game.id}/history`)}
+              >
+                Geschiedenis
+              </Button>
+            </Group>
           </Card>
         ))}
       </Stack>

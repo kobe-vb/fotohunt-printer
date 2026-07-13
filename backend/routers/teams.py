@@ -1,8 +1,7 @@
-
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie
 from sqlmodel import Session, select
 from database import get_session
-from models.task import TaskResponse
+from models.task import TaskPage, TaskResponse, TeamHistoryResponse
 from services.PrinterQueue import get_printer_Queue
 from models.models import TaskRecord, Team, Game
 from pydantic import BaseModel
@@ -22,6 +21,34 @@ def get_teams(game_id: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Game niet gevonden")
     return session.exec(select(Team).where(Team.game_id == game_id)).all()
 
+@router.get("/history", response_model=TaskPage)
+def get_team_tasks(team_id: str = Cookie(default=None), offset:int = 0, limit:int = 50, session:Session = Depends(get_session)):
+
+    if limit > 50:
+        limit = 50
+
+    tasks = session.exec(
+        select(TaskRecord)
+        .where(TaskRecord.team_id == team_id)
+        .order_by(TaskRecord.sequence_number)
+        .offset(offset)
+        .limit(limit)
+    ).all()
+
+
+    next_offset = None
+
+    if len(tasks) == limit:
+        next_offset = offset + limit
+
+
+    return {
+        "items":[
+            TaskResponse.from_record(t)
+            for t in tasks
+        ],
+        "next_offset": next_offset
+    }
 @router.post("")
 async def create_team(game_id: str, body: TeamCreate, response: Response, session: Session = Depends(get_session), printer: PrinterQueue = Depends(get_printer_Queue)):
     

@@ -48,4 +48,13 @@ class TaskResponse(BaseModel):
     @classmethod
     def from_record(cls, r: TaskRecord) -> "TaskResponse":
         return cls(**r.model_dump(exclude={"extras_json"}), extras=r.extras)
-  
+
+
+class TeamHistoryResponse(BaseModel):
+    id: str
+    name: str
+    tasks: list[TaskResponse]
+    
+class TaskPage(BaseModel):
+    items: list[TaskResponse]
+    next_offset: int | None

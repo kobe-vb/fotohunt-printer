@@ -4,12 +4,14 @@ import JoinPage from './pages/JoinPage';
 import GamePage from './pages/GamePage';
 import ShopPage from './pages/ShopPage';
 import QrCodePage from './pages/QrCodePage';
+import HistoryPage from './pages/HistoryPage';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<GamesPage />} />
       <Route path="/games/:gameId/join" element={<JoinPage />} />
+      <Route path="/games/:gameId/history" element={<HistoryPage />} />
       <Route path="/game" element={<GamePage />} />
       <Route path="/shop" element={<ShopPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

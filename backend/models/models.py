@@ -15,8 +15,8 @@ class Game(SQLModel, table=True):
 class Team(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     name: str
-    game_id: str = Field(foreign_key="game.id")
-
+    game_id: str = Field(foreign_key="game.id", index=True)
+    
     sabotage_coins: int = Field(default=10)
     shop_coins: int = Field(default=10)
     steal_coins: int = Field(default=10)
@@ -34,7 +34,7 @@ class Team(SQLModel, table=True):
 
 class TaskRecord(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
-    team_id: str = Field(foreign_key="team.id")
+    team_id: str = Field(foreign_key="team.id", index=True)
     sequence_number: int
 
     assigned_at: datetime = Field(default_factory=datetime.utcnow)
