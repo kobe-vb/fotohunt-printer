@@ -9,19 +9,26 @@ import { api } from '../apiClient';
 type Extra = { text: string; likes: number };
 
 type TaskRecord = {
-  id: string;
-  sequence_number: number;
-  location_text: string | null;
-  location_likes: number | null;
-  pose_text: string | null;
-  pose_likes: number | null;
-  object_text: string | null;
-  object_likes: number | null;
-  special_task_text: string | null;
-  special_task_likes: number | null;
-  extras: Extra[];
-  is_stolen: boolean;
-  multiplier: number;
+    id: string;
+    sequence_number: number;
+
+    location_text: string | null;
+    location_likes: number;
+
+    pose_text: string | null;
+    pose_likes: number;
+
+    object_text: string | null;
+    object_likes: number;
+
+    special_task_text: string | null;
+    special_task_likes: number;
+
+    extras: Extra[];
+
+    photo_url: string | null;
+    multiplier: number;
+    is_stolen: boolean;
 };
 
 type Team = {

@@ -36,6 +36,7 @@ type TaskRecord = {
 
     photo_url: string | null;
     multiplier: number;
+    is_stolen: boolean;
 };
 
 function taskLikes(task: TaskRecord) {

@@ -25,20 +25,23 @@ type TaskRecord = {
     id: string;
     sequence_number: number;
 
-    location_text: string;
+    location_text: string | null;
     location_likes: number;
 
-    pose_text: string;
+    pose_text: string | null;
     pose_likes: number;
 
-    object_text: string;
+    object_text: string | null;
     object_likes: number;
+
+    special_task_text: string | null;
+    special_task_likes: number;
 
     extras: Extra[];
 
     photo_url: string | null;
-
-    submitted_at?: string | null;
+    multiplier: number;
+    is_stolen: boolean;
 };
 
 
