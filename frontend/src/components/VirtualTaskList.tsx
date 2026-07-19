@@ -1,252 +1,181 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
-
 import {
-    Card,
-    Text,
-    Stack,
-    Group,
     Badge,
+    Card,
+    Group,
     Image,
+    Paper,
     SimpleGrid,
-    Paper
+    Stack,
+    Text,
 } from "@mantine/core";
-
 
 type Extra = {
     text: string;
     likes: number;
 };
 
-
 type TaskRecord = {
-
     id: string;
-
     sequence_number: number;
 
-    location_text: string;
+    location_text: string | null;
     location_likes: number;
 
-    pose_text: string;
+    pose_text: string | null;
     pose_likes: number;
 
-    object_text: string;
+    object_text: string | null;
     object_likes: number;
+
+    special_task_text: string | null;
+    special_task_likes: number;
 
     extras: Extra[];
 
     photo_url: string | null;
-
+    multiplier: number;
 };
 
-
-
-export default function VirtualTaskList({
-
-    tasks,
-    apiBase
-
-}: {
-
-    tasks: TaskRecord[];
-
-    apiBase: string;
-
-}) {
-
-
-    const parentRef =
-        useRef<HTMLDivElement>(null);
-
-
-
-    const virtualizer =
-        useVirtualizer({
-
-            count: tasks.length,
-
-            getScrollElement:
-                () => parentRef.current,
-
-            estimateSize:
-                () => 350
-
-        });
-
-
+function taskLikes(task: TaskRecord) {
+    if (task.special_task_text !== null) {
+        return task.special_task_likes ?? 0;
+    }
 
     return (
+        (task.location_likes ?? 0) +
+        (task.pose_likes ?? 0) +
+        (task.object_likes ?? 0)
+    );
+}
 
+export default function VirtualTaskList({
+    tasks,
+    apiBase,
+}: {
+    tasks: TaskRecord[];
+    apiBase: string;
+}) {
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const rowVirtualizer = useVirtualizer({
+        count: tasks.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 500,
+        overscan: 5,
+        // belangrijk: laat de virtualizer echt de DOM-hoogte gebruiken,
+        // inclusief marges (paddingBottom zit op het gemeten element)
+        measureElement: (el) => el.getBoundingClientRect().height,
+    });
+
+    return (
         <div
-
             ref={parentRef}
-
             style={{
-                height: 800,
-                overflow: "auto"
+                height: "80vh",
+                overflow: "auto",
+                contain: "strict",
             }}
-
         >
-
-
             <div
-
                 style={{
-
-                    height:
-                        virtualizer.getTotalSize(),
-
-                    position: "relative"
-
+                    height: rowVirtualizer.getTotalSize(),
+                    position: "relative",
+                    width: "100%",
                 }}
-
             >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const task = tasks[virtualRow.index];
 
+                    return (
+                        <div
+                            key={task.id}
+                            ref={rowVirtualizer.measureElement}
+                            data-index={virtualRow.index}
+                            style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                transform: `translateY(${virtualRow.start}px)`,
+                                paddingBottom: 16,
+                            }}
+                        >
+                            <Card withBorder>
+                                <Group justify="space-between">
+                                    <Text size="xs">
+                                        Taak #{task.sequence_number} x{task.multiplier}
+                                    </Text>
 
-                {
-                    virtualizer
-                        .getVirtualItems()
-                        .map(item => {
+                                    <Badge>
+                                        {taskLikes(task) * task.multiplier} likes
+                                    </Badge>
+                                </Group>
 
-
-                            const task =
-                                tasks[item.index];
-
-
-                            return (
-
-                                <div
-
-                                    key={task.id}
-
-                                    style={{
-
-                                        position: "absolute",
-
-                                        top: 0,
-
-                                        left: 0,
-
-                                        width: "100%",
-
-                                        transform:
-                                            `translateY(${item.start}px)`
-
-                                    }}
-
-                                >
-
-
-                                    <Card withBorder>
-
-
-                                        <Group justify="space-between">
-
-                                            <Text size="xs">
-                                                Taak #{task.sequence_number}
-                                            </Text>
-
-
-                                            <Badge>
-                                                {task.location_likes +
-                                                    task.pose_likes +
-                                                    task.object_likes}
-                                                likes
-                                            </Badge>
-
-
-                                        </Group>
-
-
-
-                                        <Stack mt="md">
-
-
-                                            {
-                                                task.photo_url && (
-
-                                                    <Image
-
-                                                        src={`${apiBase}${task.photo_url}`}
-
-                                                        mah={300}
-
-                                                        radius="md"
-
-                                                    />
-
+                                <Stack mt="md">
+                                    {task.photo_url && (
+                                        <Image
+                                            src={`${apiBase}${task.photo_url}`}
+                                            radius="md"
+                                            fit="contain"
+                                            onLoad={() =>
+                                                rowVirtualizer.measureElement(
+                                                    document.querySelector(
+                                                        `[data-index="${virtualRow.index}"]`
+                                                    ) as HTMLElement
                                                 )
-
                                             }
+                                        />
+                                    )}
 
+                                    {task.special_task_text ? (
+                                        <Paper withBorder p="sm">
+                                            <Text size="xs">Opdracht</Text>
+                                            <Text>
+                                                {task.special_task_text} (
+                                                {task.special_task_likes * task.multiplier})
+                                            </Text>
+                                        </Paper>
+                                    ) : (
+                                        <SimpleGrid cols={3}>
+                                            <Paper withBorder p="sm">
+                                                <Text size="xs">Locatie</Text>
+                                                <Text>
+                                                    {task.location_text} (
+                                                    {task.location_likes * task.multiplier})
+                                                </Text>
+                                            </Paper>
 
+                                            <Paper withBorder p="sm">
+                                                <Text size="xs">Pose</Text>
+                                                <Text>
+                                                    {task.pose_text} (
+                                                    {task.pose_likes * task.multiplier})
+                                                </Text>
+                                            </Paper>
 
-                                            <SimpleGrid cols={3}>
+                                            <Paper withBorder p="sm">
+                                                <Text size="xs">Object</Text>
+                                                <Text>
+                                                    {task.object_text} (
+                                                    {task.object_likes * task.multiplier})
+                                                </Text>
+                                            </Paper>
+                                        </SimpleGrid>
+                                    )}
 
-
-                                                <Paper p="sm" withBorder>
-
-                                                    <Text size="xs">
-                                                        Locatie
-                                                    </Text>
-
-                                                    <Text>
-                                                        {task.location_text}
-                                                    </Text>
-
-                                                </Paper>
-
-
-
-                                                <Paper p="sm" withBorder>
-
-                                                    <Text size="xs">
-                                                        Pose
-                                                    </Text>
-
-                                                    <Text>
-                                                        {task.pose_text}
-                                                    </Text>
-
-                                                </Paper>
-
-
-
-                                                <Paper p="sm" withBorder>
-
-                                                    <Text size="xs">
-                                                        Object
-                                                    </Text>
-
-                                                    <Text>
-                                                        {task.object_text}
-                                                    </Text>
-
-                                                </Paper>
-
-
-                                            </SimpleGrid>
-
-
-
-                                            {
-                                                task.extras.map((extra, i) => (
-
-                                                    <Text key={i} size="sm">
-
-                                                        {extra.text}
-                                                        +{extra.likes}
-                                                    </Text>
-                                                ))
-                                            }
-                                        </Stack>
-                                    </Card>
-                                </div>
-                            )
-                        })
-                }
+                                    {task.extras.map((extra, i) => (
+                                        <Text key={i} size="sm">
+                                            {extra.text} ({extra.likes * task.multiplier})
+                                        </Text>
+                                    ))}
+                                </Stack>
+                            </Card>
+                        </div>
+                    );
+                })}
             </div>
         </div>
-    )
+    );
 }

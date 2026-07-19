@@ -4,17 +4,19 @@ type Extra = { text: string; likes: number };
 type TaskRecord = {
   id: string;
   sequence_number: number;
-  location_text: string;
-  location_likes: number;
-  pose_text: string;
-  pose_likes: number;
-  object_text: string;
-  object_likes: number;
+  // location/pose/object zijn null als opdracht_text is ingevuld (en vice versa)
+  location_text: string | null;
+  location_likes: number | null;
+  pose_text: string | null;
+  pose_likes: number | null;
+  object_text: string | null;
+  object_likes: number | null;
+  opdracht_text: string | null;
+  opdracht_likes: number | null;
   extras: Extra[];
 };
 """
 
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -28,18 +30,24 @@ class Extra(BaseModel):
 class TaskResponse(BaseModel):
     id: str
     sequence_number: int
-    location_text: str
-    location_likes: int
-    pose_text: str
-    pose_likes: int
-    object_text: str
-    object_likes: int
+    location_text: str | None
+    location_likes: int | None
+    pose_text: str | None
+    pose_likes: int | None
+    object_text: str | None
+    object_likes: int | None
+    special_task_text: str | None
+    special_task_likes: int | None
     extras: list[Extra]
     photo_url: str | None
+    is_stolen: bool
+    multiplier: float
     
     @property
     def likes(self) -> int:
-        return self.location_likes + self.pose_likes + self.object_likes
+        if self.special_task_text is not None:
+            return self.special_task_likes or 0
+        return (self.location_likes or 0) + (self.pose_likes or 0) + (self.object_likes or 0)
     
     @property
     def bonus_likes(self) -> int:

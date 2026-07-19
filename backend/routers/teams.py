@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from services.PrinterQueue import PrinterQueue
 from services.submission import assign_new_task
-from services.task_generator import generate_task
+from services.task_generator import task_generator
 
 router = APIRouter(prefix="/games/{game_id}/teams", tags=["teams"])
 
@@ -65,7 +65,7 @@ async def create_team(game_id: str, body: TeamCreate, response: Response, sessio
 
     response.set_cookie("team_id", team.id, httponly=True, samesite="lax")
     
-    task: TaskRecord = generate_task(team.id, 1) # TODO: add simple task type
+    task: TaskRecord = task_generator.genereer_specifieke_taak(team.id, 1, "maak een leuke groeps foto", 10, 0)
     assign_new_task(team.id, session, task)
     await printer.print_task(team.name, TaskResponse.from_record(task))
     

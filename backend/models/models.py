@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import UUID, Field, SQLModel
 
 
 class Game(SQLModel, table=True):
@@ -39,21 +39,36 @@ class TaskRecord(SQLModel, table=True):
 
     assigned_at: datetime = Field(default_factory=datetime.utcnow)
 
-    location_text: str
-    location_likes: int
-    pose_text: str
-    pose_likes: int
-    object_text: str
-    object_likes: int
+    location_text: Optional[str] = Field(default=None)
+    location_likes: Optional[int] = Field(default=None)
+    pose_text: Optional[str] = Field(default=None)
+    pose_likes: Optional[int] = Field(default=None)
+    object_text: Optional[str] = Field(default=None)
+    object_likes: Optional[int] = Field(default=None)
+    
+    copied_from: Optional[str] = Field(default=None)
+    is_stolen: bool = Field(default=False)
+
+    special_task_text: Optional[str] = Field(default=None)
+    special_task_likes: Optional[int] = Field(default=None)
+
     extras_json: str = Field(default="[]")  # JSON: [{"text": "...", "likes": 3}, ...]
 
     photo_url: Optional[str] = Field(default=None)
     submitted_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    multiplier: float = Field(default=1.0)
+    
+    @property
+    def is_stolen_copy(self) -> bool:
+        return self.copied_from is not None
 
     @property
     def likes(self) -> int:
-        return self.location_likes + self.pose_likes + self.object_likes
+        if self.special_task_text is not None:
+            return self.special_task_likes or 0
+        return (self.location_likes or 0) + (self.pose_likes or 0) + (self.object_likes or 0)
     
     @property
     def bonus_likes(self) -> int:
@@ -65,4 +80,3 @@ class TaskRecord(SQLModel, table=True):
 
     def set_extras(self, extras: list[dict]):
         self.extras_json = json.dumps(extras)
-        

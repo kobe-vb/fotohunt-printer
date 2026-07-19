@@ -28,6 +28,9 @@ class PrinterQueue:
         
     async def print_coins(self, team_name: str, coin_name: str):
         await self.queue.put(PrintJob(type="coins", team_name=team_name, data=coin_name))
+    
+    async def print_streek(self, team_name: str):
+        await self.queue.put(PrintJob(type="streek", team_name=team_name, data=None))
 
     def _do_print(self, job: PrintJob):
         if job.type == "new_task":
@@ -36,6 +39,8 @@ class PrinterQueue:
             self.printer.print_submission(job.team_name, job.data)
         elif job.type == "coins":
             self.printer.print_coins(job.team_name, job.data)
+        elif job.type == "streek":
+            self.printer.print_streek(job.team_name)
         else:
             print(f"Unknown print job type: {job.type}")
             

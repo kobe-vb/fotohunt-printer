@@ -1,4 +1,5 @@
 import os
+import random
 
 from escpos.printer import Network
 from PIL import Image
@@ -36,14 +37,18 @@ class PrinterService:
         p.text(f"opdracht {task.sequence_number}\n")
         p.set(normal_textsize=True)
         p.text(f"for {task.likes} likes\n")
+        if abs(task.multiplier - 1) > 0.0001:
+            p.text(f"x{task.multiplier}\n")
 
         # reset style
         p.set(bold=False, normal_textsize=True, align="left")
-        p.text(f"normale opdracht:\n")
 
-        p.text(f"• locatie: {task.location_text} ({task.location_likes})\n")
-        p.text(f"• pose: {task.pose_text} ({task.pose_likes})\n")
-        p.text(f"• object: {task.object_text} ({task.object_likes})")
+        if task.special_task_text is not None:
+            p.text(f"• {task.special_task_text} ({task.special_task_likes})\n")
+        else:
+            p.text(f"• locatie: {task.location_text} ({task.location_likes})\n")
+            p.text(f"• pose: {task.pose_text} ({task.pose_likes})\n")
+            p.text(f"• object: {task.object_text} ({task.object_likes})")
 
         if len(task.extras) == 0:
             return
@@ -81,3 +86,29 @@ class PrinterService:
             p.cut()
         finally:
             p.close()
+            
+    def print_streek(self, team_name: str):
+        p = self._connect()
+        try:
+            p.set(align="center", bold=True, double_height=True, double_width=True, underline=1)
+            p.text(f"{team_name}\n")
+            p.set(underline=0)
+            streek, likes = get_random_Streek()
+            p.text(f"{streek}({likes})\n")
+            p.cut()
+        finally:
+            p.close()
+            
+def get_random_Streek():
+    streek = [
+        ("3 fotos met bal", 10),
+        ("4 fotos met iemand in de lucht", 14),
+        ("3 fotos met iemand in de lucht", 10),
+        ("2 fotos 1 iemand handstand", 5),
+        ("3 fotos 1 iemand handstand", 7),
+        ("2 fotos met een leiding", 4),
+        ("5 fotos met een leiding", 20),
+        ("", ),
+        
+    ]
+    return random.choice(streek)

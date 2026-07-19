@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   Container, Group, Text, Button, Stack, Card, Badge,
-  FileInput, Title, Box, SimpleGrid, Paper, SegmentedControl
+  FileInput, Title, Box, SimpleGrid, Paper, SegmentedControl, ActionIcon
 } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../apiClient';
@@ -11,13 +11,17 @@ type Extra = { text: string; likes: number };
 type TaskRecord = {
   id: string;
   sequence_number: number;
-  location_text: string;
-  location_likes: number;
-  pose_text: string;
-  pose_likes: number;
-  object_text: string;
-  object_likes: number;
+  location_text: string | null;
+  location_likes: number | null;
+  pose_text: string | null;
+  pose_likes: number | null;
+  object_text: string | null;
+  object_likes: number | null;
+  special_task_text: string | null;
+  special_task_likes: number | null;
   extras: Extra[];
+  is_stolen: boolean;
+  multiplier: number;
 };
 
 type Team = {
@@ -44,6 +48,49 @@ const MODIFIER_COLORS: Record<string, string> = {
   backwards: 'grape',
 };
 
+// Zo lang moeten we wachten tussen twee automatische refreshes bij terug-in-focus komen,
+// zodat we de backend niet plat bombarderen als iemand snel tussen tabs wisselt.
+const REFOCUS_COOLDOWN_MS = 5000;
+
+function TaskCard({ task, accentColor }: { task: TaskRecord; accentColor?: string }) {
+  return (
+    <>
+      {task.special_task_text !== null ? (
+        <Paper p="sm" withBorder mb="sm">
+          <Text size="xs" c="dimmed">Opdracht</Text>
+          <Text size="sm" fw={500}>{task.special_task_text}</Text>
+          <Text size="xs" c="dimmed">+{task.special_task_likes} likes</Text>
+        </Paper>
+      ) : (
+        <SimpleGrid cols={3} spacing="sm" mb="sm">
+          <Paper p="sm" withBorder>
+            <Text size="xs" c="dimmed">Locatie</Text>
+            <Text size="sm" fw={500}>{task.location_text}</Text>
+            <Text size="xs" c="dimmed">+{task.location_likes} likes</Text>
+          </Paper>
+          <Paper p="sm" withBorder>
+            <Text size="xs" c="dimmed">Pose</Text>
+            <Text size="sm" fw={500}>{task.pose_text}</Text>
+            <Text size="xs" c="dimmed">+{task.pose_likes} likes</Text>
+          </Paper>
+          <Paper p="sm" withBorder>
+            <Text size="xs" c="dimmed">Object</Text>
+            <Text size="sm" fw={500}>{task.object_text}</Text>
+            <Text size="xs" c="dimmed">+{task.object_likes} likes</Text>
+          </Paper>
+        </SimpleGrid>
+      )}
+      {task.extras.map((ex, i) => (
+        <Group key={i} justify="space-between" p="xs"
+          style={{ background: accentColor ? `var(--mantine-color-${accentColor}-0)` : 'var(--mantine-color-default-hover)', borderRadius: 8, marginTop: 4 }}>
+          <Text size="sm">{ex.text}</Text>
+          <Text size="xs" c="dimmed">+{ex.likes} likes</Text>
+        </Group>
+      ))}
+    </>
+  );
+}
+
 export default function GamePage() {
   const navigate = useNavigate();
   const [team, setTeam] = useState<Team | null>(null);
@@ -56,7 +103,10 @@ export default function GamePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const lastLoadRef = useRef(0);
 
   const modifiers: Modifier[] = useMemo(() => {
     if (!team) return [];
@@ -68,7 +118,10 @@ export default function GamePage() {
     return mods;
   }, [team]);
 
-  async function loadData() {
+  const loadData = useCallback(async (opts: { showSpinner?: boolean } = {}) => {
+    lastLoadRef.current = Date.now();
+    if (opts.showSpinner) setRefreshing(true);
+
     try {
       const t = await api.get<Team>('teams/me');
       setTeam(t);
@@ -77,6 +130,7 @@ export default function GamePage() {
         setError('Je hebt momenteel geen actieve taak.');
         return;
       }
+      setError(null);
 
       const activeTask = await api.get<TaskRecord>(`task/${t.active_task_id}`);
       setTask(activeTask);
@@ -96,9 +150,28 @@ export default function GamePage() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
-  useEffect(() => {loadData()}, []);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Geen polling, gewoon opnieuw ophalen als het tabblad terug in focus komt
+  // (bv. terug van de camera-app), met een korte cooldown tegen spam.
+  useEffect(() => {
+    function onFocus() {
+      if (Date.now() - lastLoadRef.current > REFOCUS_COOLDOWN_MS) {
+        loadData();
+      }
+    }
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onFocus();
+    });
+    return () => {
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [loadData]);
 
   // Simpele preview van de gekozen foto, geen verwerking
   useEffect(() => {
@@ -107,6 +180,23 @@ export default function GamePage() {
     setPhotoPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [photoFile]);
+
+  async function generateNewTask() {
+    try {
+      const new_task = await api.post<TaskRecord>(`task/new`, {});
+      setTask(new_task);
+    }
+    catch (err: any) {
+      setError(
+        err?.message ||
+        'Kan teamgegevens niet laden. Controleer je verbinding.'
+      );
+    }
+    finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
 
   async function submitPhoto() {
     const targetTask = submitTarget === 'steal' && stealTask ? stealTask : task;
@@ -144,6 +234,21 @@ export default function GamePage() {
     );
   }
 
+  if (task?.is_stolen) {
+    return (
+      <Container size="sm" py="xl">
+        <Card withBorder>
+          <Stack>
+            <Title order={3}>uw opdracht is gestolen!</Title>
+            <Text></Text>
+
+            <Button onClick={() => generateNewTask()}>genereer nieuwe opdracht</Button>
+          </Stack>
+        </Card>
+      </Container>
+    );
+  }
+
   if (error) {
     return (
       <Container size="sm" py="xl">
@@ -153,7 +258,7 @@ export default function GamePage() {
             <Text c="red">{error}</Text>
 
             <Group>
-              <Button onClick={() => window.location.reload()}>
+              <Button onClick={() => loadData({ showSpinner: true })} loading={refreshing}>
                 Opnieuw proberen
               </Button>
 
@@ -184,7 +289,18 @@ export default function GamePage() {
         }}
       >
         <Group justify="space-between">
-          <Text fw={500}>{team.name}</Text>
+          <Group gap="xs">
+            <ActionIcon
+              variant="default"
+              size="lg"
+              onClick={() => loadData({ showSpinner: true })}
+              loading={refreshing}
+              aria-label="Ververs"
+            >
+              ↻
+            </ActionIcon>
+            <Text fw={500}>{team.name}</Text>
+          </Group>
           <Group gap="xs">
             <Button
               size="compact-sm" variant="default"
@@ -232,67 +348,21 @@ export default function GamePage() {
           {stealTask && (
             <Card withBorder style={{ borderColor: 'var(--mantine-color-red-6)', borderWidth: 2 }}>
               <Group justify="space-between" mb="xs">
-                <Text size="xs" c="red" tt="uppercase" fw={700}>Gestolen taak · #{stealTask.sequence_number}</Text>
+                <Text size="xs" c="red" tt="uppercase" fw={700}>Gestolen taak · #{stealTask.sequence_number} x{stealTask.multiplier}</Text>
                 <Badge color="red">Race!</Badge>
               </Group>
               <Text size="sm" c="dimmed" mb="sm">
                 Deze taak is van een ander team gestolen. Wie 'm het eerst indient, krijgt de punten —
                 het verliezende team krijgt niets voor deze taak. Je eigen taak hieronder blijft gewoon staan.
               </Text>
-              <SimpleGrid cols={3} spacing="sm" mb="sm">
-                <Paper p="sm" withBorder>
-                  <Text size="xs" c="dimmed">Locatie</Text>
-                  <Text size="sm" fw={500}>{stealTask.location_text}</Text>
-                  <Text size="xs" c="dimmed">+{stealTask.location_likes} likes</Text>
-                </Paper>
-                <Paper p="sm" withBorder>
-                  <Text size="xs" c="dimmed">Pose</Text>
-                  <Text size="sm" fw={500}>{stealTask.pose_text}</Text>
-                  <Text size="xs" c="dimmed">+{stealTask.pose_likes} likes</Text>
-                </Paper>
-                <Paper p="sm" withBorder>
-                  <Text size="xs" c="dimmed">Object</Text>
-                  <Text size="sm" fw={500}>{stealTask.object_text}</Text>
-                  <Text size="xs" c="dimmed">+{stealTask.object_likes} likes</Text>
-                </Paper>
-              </SimpleGrid>
-              {stealTask.extras.map((ex, i) => (
-                <Group key={i} justify="space-between" p="xs"
-                  style={{ background: 'var(--mantine-color-red-0)', borderRadius: 8, marginTop: 4 }}>
-                  <Text size="sm">{ex.text}</Text>
-                  <Text size="xs" c="dimmed">+{ex.likes} likes</Text>
-                </Group>
-              ))}
+              <TaskCard task={stealTask} accentColor="red" />
             </Card>
           )}
 
           {/* Taak */}
           <Card withBorder>
-            <Text size="xs" c="dimmed" tt="uppercase" mb="sm">Taak #{task.sequence_number}</Text>
-            <SimpleGrid cols={3} spacing="sm" mb="sm">
-              <Paper p="sm" withBorder>
-                <Text size="xs" c="dimmed">Locatie</Text>
-                <Text size="sm" fw={500}>{task.location_text}</Text>
-                <Text size="xs" c="dimmed">+{task.location_likes} likes</Text>
-              </Paper>
-              <Paper p="sm" withBorder>
-                <Text size="xs" c="dimmed">Pose</Text>
-                <Text size="sm" fw={500}>{task.pose_text}</Text>
-                <Text size="xs" c="dimmed">+{task.pose_likes} likes</Text>
-              </Paper>
-              <Paper p="sm" withBorder>
-                <Text size="xs" c="dimmed">Object</Text>
-                <Text size="sm" fw={500}>{task.object_text}</Text>
-                <Text size="xs" c="dimmed">+{task.object_likes} likes</Text>
-              </Paper>
-            </SimpleGrid>
-            {task.extras.map((ex, i) => (
-              <Group key={i} justify="space-between" p="xs"
-                style={{ background: 'var(--mantine-color-default-hover)', borderRadius: 8, marginTop: 4 }}>
-                <Text size="sm">{ex.text}</Text>
-                <Text size="xs" c="dimmed">+{ex.likes} likes</Text>
-              </Group>
-            ))}
+            <Text size="xs" c="dimmed" tt="uppercase" mb="sm">Taak #{task.sequence_number} x{task.multiplier}</Text>
+            <TaskCard task={task} />
           </Card>
 
           {/* Foto upload + preview */}

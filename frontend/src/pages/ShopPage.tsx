@@ -27,15 +27,15 @@ type Team = {
 const sabotageItems = [
   {
     id: 'blind',
-    label: 'Blinddoek (2 rondes)',
+    label: 'Blinddoek 1 iemand 1 ronde',
   },
   {
     id: 'backwards',
-    label: '2 rondes achteruit lopen',
+    label: '1 ronde 1 iemand achteruit lopen',
   },
   {
     id: 'half_likes',
-    label: '0.5x likes (1 ronde)',
+    label: '0.5x likes',
   },
 ];
 
@@ -51,7 +51,7 @@ const shopItems = [
   },
   {
     id: 'street',
-    label: 'Streek kopen',
+    label: 'Streeks kopen',
   },
   {
     id: 'double',

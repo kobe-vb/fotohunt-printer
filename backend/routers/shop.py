@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from sqlmodel import Session
 from database import get_session
 from models.models import Team
-
+from services.PrinterQueue import PrinterQueue, get_printer_Queue
+from services.steal import steal_task
 
 
 router = APIRouter(prefix="/shop", tags=["shop"])
@@ -68,18 +69,19 @@ async def steal(body: StealRequest, team_id: str = Cookie(default=None), db: Ses
         db.add(partner)
         db.commit()    
         raise HTTPException(status_code=400, detail="Partner heeft stelen geblokkeerd")
+    try:
+        steal_task(team.id, partner.active_task_id, db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
-    team.steal_task_id = partner.active_task_id
-        
-    db.add(team)
-    db.add(partner)
-    db.commit()
     db.refresh(team)
     
     return team
 
+
+
 @router.post("/buy", response_model=Team)
-async def buy(body: ShopRequest, team_id: str = Cookie(default=None), db: Session = Depends(get_session)):
+async def buy(body: ShopRequest, team_id: str = Cookie(default=None), db: Session = Depends(get_session), printer: PrinterQueue = Depends(get_printer_Queue)):
     team = get_team(team_id, db)
     
     if team.shop_coins < 1:
@@ -90,6 +92,11 @@ async def buy(body: ShopRequest, team_id: str = Cookie(default=None), db: Sessio
             team.block_steal = True
         case "extra":
             team.number_of_extras += 1
+        case "street":
+            await printer.print_streek(team.name)
+        case "double":
+            team.multiplier *= 2
+            print(team.multiplier)
             
     team.shop_coins -= 1
     
