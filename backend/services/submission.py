@@ -25,8 +25,8 @@ async def handle_submission(
     if old_task.photo_url:
         raise ValueError("Task al ingediend")
     # TODO: Uncomment this check if you want to enforce a minimum time between submissions
-    # if datetime.utcnow() - old_task.created_at < timedelta(minutes=3):
-    #     raise ValueError(f"Task te snel ingediend, wacht {3 - (datetime.utcnow() - old_task.created_at).seconds // 60} minuten")
+    if datetime.utcnow() - old_task.created_at < timedelta(minutes=3):
+        raise ValueError(f"Task te snel ingediend, wacht {3 - (datetime.utcnow() - old_task.created_at).seconds // 60} minuten")
 
     team = db.get(Team, team_id)
     if not team:

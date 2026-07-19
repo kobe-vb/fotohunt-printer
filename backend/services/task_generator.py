@@ -168,8 +168,7 @@ class TaskGenerator:
     def _voeg_extras_toe(self, record: TaskRecord, extra_count: int) -> None:
 
         total = min(5, extra_count)
-        #TODO
-        total = 5
+
         if total > 0:
             chosen = random.sample(EXTRAS, k=total)
             record.set_extras([{"text": text, "likes": likes} for text, likes in chosen])

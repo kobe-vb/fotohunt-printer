@@ -17,9 +17,9 @@ class Team(SQLModel, table=True):
     name: str
     game_id: str = Field(foreign_key="game.id", index=True)
     
-    sabotage_coins: int = Field(default=10)
-    shop_coins: int = Field(default=10)
-    steal_coins: int = Field(default=10)
+    sabotage_coins: int = Field(default=0)
+    shop_coins: int = Field(default=0)
+    steal_coins: int = Field(default=0)
     
     number_of_extras: int = Field(default=0)
     block_steal: bool = Field(default=False)
